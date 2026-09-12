@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Trash2, ChevronDown, ChevronUp, FileText, Image, RotateCcw, Home, Building2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { ReceiptDocument } from '@/components/ReceiptDocument';
 import type { Receipt, ExtractedData } from '@/hooks/use-receipts';
 import { getReceiptImageUrl } from '@/lib/image-utils';
@@ -19,17 +19,30 @@ interface ReceiptListProps {
   jobs?: Job[];
   onAssignJob?: (receiptId: string, jobId: string | null) => void;
   onSetScope?: (receiptId: string, scope: 'home' | 'business') => void;
+  autoExpandId?: string | null;
 }
 
-export function ReceiptList({ receipts, onDelete, onUpdateExtracted, onReExtract, loading, jobs = [], onAssignJob, onSetScope }: ReceiptListProps) {
+export function ReceiptList({ receipts, onDelete, onUpdateExtracted, onReExtract, loading, jobs = [], onAssignJob, onSetScope, autoExpandId }: ReceiptListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showImage, setShowImage] = useState<Record<string, boolean>>({});
+
+  // Auto-open the document view for a freshly uploaded receipt
+  useEffect(() => {
+    if (!autoExpandId) return;
+    if (!receipts.some((r) => r.id === autoExpandId)) return;
+    setExpandedId(autoExpandId);
+    setShowImage((prev) => ({ ...prev, [autoExpandId]: false }));
+    // Let it render, then scroll into view
+    requestAnimationFrame(() => {
+      document.getElementById(`receipt-${autoExpandId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [autoExpandId, receipts]);
 
   if (receipts.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p className="font-display text-lg">No receipts yet</p>
-        <p className="text-sm mt-1">Upload your first receipt above</p>
+        <p className="text-sm mt-1">Tap the orange + button below to scan your first receipt</p>
       </div>
     );
   }
@@ -44,49 +57,33 @@ export function ReceiptList({ receipts, onDelete, onUpdateExtracted, onReExtract
         const job = jobs.find((j) => j.id === r.job_id);
 
         return (
-          <Card key={r.id} className="overflow-hidden transition-all">
+          <Card key={r.id} id={`receipt-${r.id}`} className="overflow-hidden transition-all rounded-2xl border shadow-sm hover:shadow-md">
             <CardContent className="p-0">
               <button
                 className="w-full flex items-center gap-3 p-4 text-left hover:bg-muted/50 transition-colors"
                 onClick={() => setExpandedId(expanded ? null : r.id)}
               >
-                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5 text-primary" />
+                <div className={`w-11 h-11 rounded-2xl ${cat ? cat.color : 'bg-primary/10'} flex items-center justify-center flex-shrink-0`}>
+                  <FileText className={`h-5 w-5 ${cat ? cat.textColor : 'text-primary'}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate font-display">{r.store_name || 'Unnamed receipt'}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-sm text-muted-foreground">{r.receipt_date}</span>
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                      (r.scope || 'home') === 'business'
-                        ? 'bg-sky-100 text-sky-700'
-                        : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {(r.scope || 'home') === 'business'
-                        ? <><Building2 className="h-3 w-3" /> Business</>
-                        : <><Home className="h-3 w-3" /> Home</>}
+                  <p className="font-semibold truncate font-display">{r.store_name || 'Unnamed receipt'}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {cat ? cat.label : 'Uncategorised'} · {(r.scope || 'home') === 'business' ? 'Biz' : 'Home'} · {r.receipt_date}
+                  </p>
+                  {job && (
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-indigo-100 text-indigo-700 mt-1">
+                      {job.name}
                     </span>
-                    {cat && (
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${cat.color} ${cat.textColor}`}>
-                        {cat.label}
-                      </span>
-                    )}
-                    {job && (
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-100 text-indigo-700">
-                        {job.name}
-                      </span>
-                    )}
-                    {hasExtracted && <Badge variant="secondary" className="text-xs">AI extracted</Badge>}
-                    {r.image_size_kb && <Badge variant="outline" className="text-xs">{r.image_size_kb} KB</Badge>}
-                  </div>
+                  )}
                 </div>
                 <div className="text-right flex-shrink-0">
                   {r.amount && (
-                    <p className="font-semibold text-primary font-display">
+                    <p className="font-bold text-foreground font-display tabular-nums">
                       E{Number(r.amount).toLocaleString('en-SZ', { minimumFractionDigits: 2 })}
                     </p>
                   )}
-                  {expanded ? <ChevronUp className="h-4 w-4 mt-1 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 mt-1 text-muted-foreground" />}
+                  {expanded ? <ChevronUp className="h-4 w-4 mt-1 ml-auto text-muted-foreground" /> : <ChevronDown className="h-4 w-4 mt-1 ml-auto text-muted-foreground" />}
                 </div>
               </button>
 

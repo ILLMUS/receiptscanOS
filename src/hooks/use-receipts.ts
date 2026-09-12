@@ -69,7 +69,7 @@ export function useReceipts() {
     category: string,
     jobId?: string,
     scope: 'home' | 'business' = 'home'
-  ) => {
+  ): Promise<string | null> => {
     setLoading(true);
     try {
       const { path, sizeKb } = await compressAndUploadImage(file);
@@ -107,10 +107,13 @@ export function useReceipts() {
       }
 
       await fetchReceipts();
+      setLoading(false);
+      return insertData.id as string;
     } catch (err: any) {
       toast({ title: 'Error saving receipt', description: err.message, variant: 'destructive' });
+      setLoading(false);
+      return null;
     }
-    setLoading(false);
   };
 
   const updateExtractedData = async (receiptId: string, extractedData: ExtractedData) => {

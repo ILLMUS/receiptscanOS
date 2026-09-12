@@ -17,7 +17,7 @@ import type { Receipt } from '@/hooks/use-receipts';
 import type { Job } from '@/hooks/use-jobs';
 
 interface ReceiptUploadFormProps {
-  onSubmit: (file: File, storeName: string, amount: number | null, date: string, notes: string, category: string, jobId?: string, scope?: 'home' | 'business') => Promise<void>;
+  onSubmit: (file: File, storeName: string, amount: number | null, date: string, notes: string, category: string, jobId?: string, scope?: 'home' | 'business') => Promise<string | null | void>;
   loading: boolean;
   findDuplicate?: (storeName: string, amount: number | null, date: string) => Receipt | null;
   jobs?: Job[];
